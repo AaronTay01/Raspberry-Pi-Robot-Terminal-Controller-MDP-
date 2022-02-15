@@ -2,36 +2,19 @@ import io
 import socket
 import struct
 import time
-#import picamera
+import picamera
 
 # Connect a client socket to my_server:8000 (change my_server to the
 # hostname of your server)
 client_socket = socket.socket()
-client_socket.connect(('192.168.87.37', 5001))
+client_socket.connect(('192.168.87.40', 8000))
 
 # Make a file-like object out of the connection
 connection = client_socket.makefile('wb')
 try:
-    start = time.time()
-    while True:
-        stream = io.BytesIO()
-        connection.write(stream.read())
-        stream.seek(0)
-        #recivedData = connection.recv(1024).decode()
-        #print(recivedData)
-        if time.time() - start > 30:
-            break
-    stream.seek(0)
-    stream.truncate()
-    connection.write(struct.pack('<L', 0))
-finally:
-    connection.close()
-    client_socket.close()
-
-try:
     camera = picamera.PiCamera()
     camera.resolution = (640, 480)
-    #Start a preview and let the camera warm up for 2 seconds
+    # Start a preview and let the camera warm up for 2 seconds
     camera.start_preview()
     time.sleep(2)
 
