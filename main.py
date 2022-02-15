@@ -3,9 +3,10 @@
 from stm import *
 from android import *
 from pc import *
-#from setting import *
 import threading
 import os
+from utils import format_for
+from multiprocessing import Process, Queue
 
 #import argparse
 #import cv2
@@ -28,6 +29,7 @@ class RaspberryPi(threading.Thread):
 		self.androidThread.connectToAndroid()
 		self.pcThread.connectToPC()
 
+		self.msg_queue = Queue()
 		time.sleep(1)
 
 
@@ -78,21 +80,16 @@ class RaspberryPi(threading.Thread):
 			if androidMessage is not None:
 				print("Read From Android: ", str(androidMessage))
 		
-	def readFromPC(self):
+	def readFromPC(self, msg_queue):
 			while True:
 				pcMessage = self.pcThread.readFromPC()
 				if pcMessage is not None:
-					print("Read from PC: ", str(pcMessage))
-				# Insert message logic here
-				#pcmsgArray = msgPC.split(":")
-				#header = pcmsgArray[0]
-				# if (self.pcThread.isItConnected() and msgPC):
-				#     if(header == 'AN'):
-				#        self.writeToAndroid(pcmsgArray[1])
-				#     elif(header == 'STM'):
-				#         self.writeToSTM(pcmsgArray[1])
-				#     else:
-				#         print("Incorrect header from PC : %s" %(msgPC)) 
+					if pcMessage['target'] == 'ST':
+						msg_queue.put_nowait(format_for('AND', pcMessage['Payload']))
+						#send ready signal to Android
+				print("Read from PC: ", str(pcMessage))
+
+
 
 	def writeToPC(self, message):
 		if self.pcThread.isConnected and message is not None:
