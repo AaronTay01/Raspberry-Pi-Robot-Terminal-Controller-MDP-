@@ -25,13 +25,13 @@ except socket.gaierror:
     print('Hostname could not be resolved. Exiting')
     sys.exit()
 
-# s.connect((remote_ip, port))
-# s.sendall(b'Hello, world')
-# data = s.recv(1024)
+
 
 # Connect to remote server
 print('# Connecting to server, ' + host + ' (' + remote_ip + ')')
 s.connect((remote_ip , port))
+s.sendall(b'Hello, world')
+data = s.recv(1024)
 
 # # Send initial message
 #print('# Sending "A" to remote server')
@@ -42,17 +42,17 @@ s.connect((remote_ip , port))
 #     print ('Send failed')
 #     sys.exit()
 
-while True:
-    #Check if there's any incoming messages
-    time.sleep(1)
-    sendMsg = "PC Message"
-    msg = s.recv(2014).strip().decode("UTF-8")
-    if msg is not None:
-        print('# Received message: ' + str(msg))
-    #     #reply = chr(ord(msg) + 1)
-    try: 
-        print("Sending Message")
-        s.sendall(sendMsg.encode('utf-8'))
-    except socket.error:
-        print ('Send failed')
-        sys.exit()
+# while True:
+#     #Check if there's any incoming messages
+#     time.sleep(1)
+#     sendMsg = "PC Message"
+#     msg = s.recv(2014).strip().decode("UTF-8")
+#     if msg is not None:
+#         print('# Received message: ' + str(msg))
+#     #     #reply = chr(ord(msg) + 1)
+#     try: 
+#         print("Sending Message")
+#         s.sendall(sendMsg.encode('utf-8'))
+#     except socket.error:
+#         print ('Send failed')
+#         sys.exit()

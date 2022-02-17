@@ -10,28 +10,23 @@ class STMRobot:
 		self.baudRate = STM_BAUDRATE
 		self.ser = 0
 		self.isConnected = False
+		self.threadListening = False
 
 	def connectToSTM(self):
-		counter = 0
+		time.sleep(1)
 		print("Connecting to STM")
 		try:
-			while self.isConnected != True or counter < 10 :
-				counter+=1
-				self.ser = serial.Serial(SERIAL_PORT0, self.baudRate, timeout=3)
-				time.sleep(1)
-				if(self.ser != 0):
-					print ("Serial Port 0 Connected to STM")
-					self.isConnected = True
-					break
+			self.ser = serial.Serial(SERIAL_PORT0, self.baudRate, timeout=3)
+			print ("Serial Port 0 Connected to STM")
+			self.isConnected = True
+		except:
+			try:
 				self.ser = serial.Serial(SERIAL_PORT1, self.baudRate, timeout=3)
-				time.sleep(1)
-				if(self.ser != 0):
-					print("Serial Port 1 Connected to STM")
-					self.isConnected = True
-					break
-		except Exception as e:
-			print("No Connection is found... %s" %str(e))
-			#traceback.print_exc(limit=10, file=sys.stdout)
+				print("Serial Port 1 Connected to STM")
+				self.isConnected = True
+			except Exception as e:
+				print("No Connection is found... %s" %str(e))
+				self.isConnected = False
 
 	def disconnectFromSTM (self):
 		self.ser.close()
@@ -49,13 +44,16 @@ class STMRobot:
 			self.connectToSTM()
 
 	def readFromSTM (self):
-		try:
-			msg = self.ser.readline()
-			receivedMsg = msg.decode('utf-8')
-			receivedMsg = str(receivedMsg)
-			print ("Received from STM: %s" % receivedMsg)
-			return receivedMsg
-		except Exception as e:
-			print ("Failed to receive message from STM")
-			self.isConnected = False
-			self.connectToSTM()
+		self.threadListening = True
+		while True:
+			try:
+				msg = self.ser.readline()
+				receivedMsg = msg.decode('utf-8')
+				receivedMsg = str(receivedMsg)
+				print ("Received from STM: %s" % receivedMsg)
+				return receivedMsg
+			except Exception as e:
+				print ("Failed to receive message from STM")
+				break
+		self.isConnected = False
+		self.threadListening = False

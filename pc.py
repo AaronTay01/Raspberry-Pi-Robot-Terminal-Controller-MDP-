@@ -1,9 +1,12 @@
+import json
 import socket
 import sys
 import traceback
 import errno
 from setting import *
 import time
+
+from utils import append_value, format_for
 
 """"
 Client
@@ -23,6 +26,10 @@ class PCInterface(object):
 		self.isConnected = False
 		self.connection = None
 		self.address = None
+		self.threadListening = False
+
+		self.path_data = []
+		self.algoLine = 0
 
 
 	def connectToPC (self):
@@ -30,7 +37,7 @@ class PCInterface(object):
 			self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 			self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 			#wifi change to self.host
-			self.socket.bind(('192.168.87.37', self.port))
+			self.socket.bind(('192.168.38.1', self.port))
 
 			self.socket.listen(3)
 			print ("Waiting for connection from PC........")
@@ -42,7 +49,8 @@ class PCInterface(object):
 
 		except Exception as e:
 			print ("Connecting to PC Error : %s" % str(e))
-			print ("Please wait to try again")
+			self.isConnected = False
+			self.threadListening = False
 
 
 	def disconnectFromPC(self):
@@ -67,15 +75,26 @@ class PCInterface(object):
 			self.connection.close()
 
 	def readFromPC (self):
+		self.threadListening = True
 		try:
-			msg = self.connection.recv(1024).decode().strip()
-			if len(msg) > 0:
-				return msg
-			return None
+			message = self.connection.recv(1024)
+			msg = message.decode()
+			return msg
+				
 		except Exception as e:
 			print ('PC message reading failed. Exception Error : %s' % str(e))
+			self.threadListening = False
 			self.isConnected = False
-			#self.connection.close()
-			self.connectToPC()
+			return
 
-	
+	def algoRun(self, msg):
+		if msg != 'terminate':
+			parsedMsg = msg.split(',')
+			print("Reading algorithm data: ", parsedMsg)	
+			self.path_data+= parsedMsg
+		else:
+			print("Saving list to txt file. Data: ", self.path_data)
+			with open('algofile.txt', 'w') as filehandle:
+				for listitem in self.path_data:
+					filehandle.write('%s\n' % listitem)
+		
