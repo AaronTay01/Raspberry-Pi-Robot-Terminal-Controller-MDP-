@@ -6,8 +6,6 @@ import errno
 from setting import *
 import time
 
-from utils import append_value, format_for
-
 """"
 Client
 # Connect a client socket to my_server:8000 (change my_server to the
