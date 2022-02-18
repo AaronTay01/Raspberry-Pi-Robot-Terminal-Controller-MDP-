@@ -27,6 +27,8 @@ class STMRobot:
 			except Exception as e:
 				print("No Connection is found... %s" %str(e))
 				self.isConnected = False
+				self.threadListening = False
+				self.ser.close()
 
 	def disconnectFromSTM (self):
 		self.ser.close()
@@ -42,8 +44,8 @@ class STMRobot:
 		except Exception as e:
 			print ("Failed to send message to STM. Exception Error : %s" %str(e))
 			self.isConnected = False
-			self.connectToSTM()
-
+			self.threadListening = False
+			self.ser.close()
 
 	def readFromSTM (self):
 		self.threadListening = True
@@ -56,6 +58,9 @@ class STMRobot:
 				return receivedMsg
 			except Exception as e:
 				print ("Failed to receive message from STM")
+				self.isConnected = False
+				self.threadListening = False
+				self.ser.close()
 				break
 		self.isConnected = False
 		self.threadListening = False

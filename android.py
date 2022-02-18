@@ -66,10 +66,13 @@ class AndroidApplication(object):
 			self.threadListening = False
 
 	def disconnectFromAndroid (self):
-		self.sock.close()
-		print ("Closing bluetooth (client)")
-		#print ("Closing bluetooth (server)")
-		self.isConnected = False 
+		try:
+			self.sock.close()
+			print ("Closing bluetooth (client)")
+			self.threadListening = False
+			self.isConnected = False
+		except Exception as e:
+			print("Failed to disconnect from Android: %s" %str(e))
 
 	def writeToAndroid (self, msg):
 		try:
