@@ -37,11 +37,13 @@ class STMRobot:
 		try:
 			self.ser.write(str.encode(msg))
 			print ("Sent to STM: %s" % msg)
-		
+		except OSError as e:
+			print(e)
 		except Exception as e:
 			print ("Failed to send message to STM. Exception Error : %s" %str(e))
 			self.isConnected = False
 			self.connectToSTM()
+
 
 	def readFromSTM (self):
 		self.threadListening = True

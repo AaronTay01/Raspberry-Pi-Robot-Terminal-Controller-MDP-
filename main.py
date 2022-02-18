@@ -24,10 +24,16 @@ class RaspberryPi(threading.Thread):
 		self.pcThread = PCInterface()
 		self.androidThread = AndroidApplication()
 
-		self.courseIsRdy = False
+		#True if there is path content
+		self.pathReady = False
+
+		#True if everything is ready
 		self.primed = False
-		self.nextPath = False
-		#self.indexPath = 0
+
+		self.nextPath = True
+
+		#number of paths
+		self.path_data = []
 
 		#initalize Queue
 		self.path_queue = Queue()
@@ -41,7 +47,7 @@ class RaspberryPi(threading.Thread):
 		coursePath = self.readTxtFile()
 
 		#insert algo path to queue
-		self.insertPath(coursePath)
+		self.pathReady = self.insertPath(coursePath)
 
 		self.serialMsg = None
 		
@@ -62,10 +68,21 @@ class RaspberryPi(threading.Thread):
 			self.path_queue.put(i)
 		#check list is not empty
 		if coursePath:
-			self.courseIsRdy = True
+			return True
+		else:
+			return False
 		#self.printPath()
 	
 	def run(self):
+		# PC control loop
+		'''if self.pcThread.isConnected == False:
+			self.pcThread.connectToPC()
+		elif self.pcThread.isConnected == True and self.pcThread.threadListening == False:
+			try:
+				threading.Thread(target=self.readFromPC).start() # start PC socket listener thread
+			except Exception as e:
+				print("PC threading error: %s" %str(e))
+				self.pcThread.isConnected = False'''
 		# Android control loop
 		if self.androidThread.isConnected == False:
 				self.androidThread.connectToAndroid()
@@ -76,16 +93,7 @@ class RaspberryPi(threading.Thread):
 				except Exception as e:
 					print("Android threading error: %s" %str(e))
 					self.androidThread.isConnected = False
-		'''# PC control loop
-		if self.pcThread.isConnected == False:
-			self.pcThread.connectToPC()
-		elif self.pcThread.isConnected == True and self.pcThread.threadListening == False:
-			try:
-				threading.Thread(target=self.readFromPC).start() # start PC socket listener thread
-			except Exception as e:
-				print("PC threading error: %s" %str(e))
-				self.pcThread.isConnected = False'''
-		'''# STM control loop
+		# STM control loop
 		if self.STMThread.isConnected == False:
 			self.STMThread.connectToSTM()
 		elif self.STMThread.isConnected == True:
@@ -94,7 +102,7 @@ class RaspberryPi(threading.Thread):
 					threading.Thread(target=self.STMThread.readFromSTM).start() # start STM listener thread
 				except Exception as e:
 					print("STM threading error: %s" %str(e))
-					self.STMThread.isConnected = False'''
+					self.STMThread.isConnected = False
 
 	'''def multithread(self):
 		#Android read and write thread
@@ -158,15 +166,28 @@ class RaspberryPi(threading.Thread):
 			if len(pcMessage) > 0:
 				print("Read From PC: ", pcMessage)
 				#target = parsedMsg[0]
-
-			if pcMessage == 'hello from algo team!':
+			if pcMessage == 'Hello from algo team':
 				print("Load algorithm data..")
-				self.pcThread.algoLine = 5
+				self.pathReady = False
 				continue	
-			if self.pcThread.algoLine > 0:
-				self.pcThread.algoRun(pcMessage)
-				self.pcThread.algoLine-=1
+			elif pcMessage != 'Goodbye from algo team':
+				self.algoRun(pcMessage)
+			else:
+				self.pathReady = True
+				self.saveToTxtFile()
 
+	#read algorithm to txt file object
+	def algoRun(self, msg):
+		parsedMsg = msg.split(',')
+		if parsedMsg[0] == 'ST':
+			print("Reading algorithm data: ", parsedMsg)	
+			self.path_data+= parsedMsg
+	def saveToTxtFile(self):
+		#save to txt file
+		print("Saving list to txt file. Data: ", self.path_data)
+		with open('algofile.txt', 'w') as filehandle:
+			for listitem in self.path_data:
+				filehandle.write('%s\n' % listitem)
 
 
 	def writeToPC(self, message):
@@ -197,24 +218,28 @@ class RaspberryPi(threading.Thread):
 				break
 	def forwarder(self):
 		while True:
-			time.sleep(1)
+			time.sleep(0.5)
+			print("Forwarder is running")
 			if not self.android_queue.empty():
 				msg = self.android_queue.get()
 				#msg validation to be changed
 				#add an or msg
-				if msg == 'R' or self.nextPath == True:
-					self.nextPath = False
+				#if msg == 'R' or self.nextPath == True:
+				if msg == 'START' and self.nextPath == True:
 					while True:
 						if not self.path_queue.empty():
 							path = self.path_queue.get()
 							if path == 'ST':	
 								continue
-							#self.STMThread.writeToSTM(path)
 							#to be removed
-							self.androidThread.writeToAndroid(path)
-							if path == 'w':
+							#self.androidThread.writeToAndroid(path)
+							elif path == 'w':
+								self.nextPath = False
 								break
-				if msg in ["FW", "BW", "FR", "FL", "BL", "BR", "TL", "TR" "STOP"]:
+							self.STMThread.writeToSTM(path)				
+				#android msg to PC
+				if msg in ["f010", "b010", "r010", "l010", "v010", "s000", "w000"]:
+					print("run STM")
 					self.STMThread.writeToSTM(msg)
 			#if STM send finish route
 			#stop when route is finish
@@ -222,10 +247,10 @@ class RaspberryPi(threading.Thread):
 			# ['target']:['payload']
 			#RPI received msg to take picture
 			#RPI send picture to PC
-			if self.serialMsg == 'Finish Route':
+			#if self.serialMsg == 'Finish Route':
 				#RPI received msg to take picture
 				#RPI send picture to PC
-				print()
+			#	print()
 			#PC send to RPI image_id 'AN','String' or ['target']:['payload']
 			#image_id send to android
 			#repeat send android Msg 
@@ -235,7 +260,7 @@ class RaspberryPi(threading.Thread):
 
 if __name__ == "__main__":
 	print("Program Starting")
-	main = RaspberryPi()
+	main = RaspberryPi()	
 	try:
 		print("Starting MultiTreading")
 		while True:
@@ -243,7 +268,7 @@ if __name__ == "__main__":
 			main.run()
 			#Priming
 			#add STM and PC is connected
-			if main.primed is False and main.courseIsRdy is True and main.androidThread.isConnected is True:
+			if main.primed is False and main.pathReady is True and main.androidThread.isConnected is True:
 				main.primed = True
 				time.sleep(3)
 				main.writeToAndroid("Ready To Start")

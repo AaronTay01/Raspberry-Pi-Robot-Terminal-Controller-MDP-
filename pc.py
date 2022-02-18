@@ -26,8 +26,7 @@ class PCInterface(object):
 		self.address = None
 		self.threadListening = False
 
-		self.path_data = []
-		self.algoLine = 0
+
 
 
 	def connectToPC (self):
@@ -49,6 +48,7 @@ class PCInterface(object):
 			print ("Connecting to PC Error : %s" % str(e))
 			self.isConnected = False
 			self.threadListening = False
+			self.socket.close()
 
 
 	def disconnectFromPC(self):
@@ -85,14 +85,5 @@ class PCInterface(object):
 			self.isConnected = False
 			return
 
-	def algoRun(self, msg):
-		if msg != 'terminate':
-			parsedMsg = msg.split(',')
-			print("Reading algorithm data: ", parsedMsg)	
-			self.path_data+= parsedMsg
-		else:
-			print("Saving list to txt file. Data: ", self.path_data)
-			with open('algofile.txt', 'w') as filehandle:
-				for listitem in self.path_data:
-					filehandle.write('%s\n' % listitem)
+
 		
