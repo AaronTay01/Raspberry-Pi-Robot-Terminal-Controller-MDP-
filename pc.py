@@ -26,11 +26,16 @@ class PCInterface(object):
 		self.address = None
 		self.threadListening = False
 
-
+		self.path_data = []
+		self.algoLine = 0
 
 
 	def connectToPC (self):
 		try:
+			# 1. Solution for thread-related issues: always attempt to disconnect first before connecting
+			self.disconnect()
+
+        	# 2. Establish and bind socket
 			self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 			self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 			#wifi change to self.host
@@ -48,14 +53,13 @@ class PCInterface(object):
 			print ("Connecting to PC Error : %s" % str(e))
 			self.isConnected = False
 			self.threadListening = False
-			self.socket.close()
 
 
 	def disconnectFromPC(self):
 		try:
 			self.socket.close()
-			self.isConnected = False
-			self.threadListening = False
+			self.connected = False
+			#self.threadListening = False
 			print("Disconnected from PC successfully.")
 		except Exception as e:
 			print("Failed to disconnect from PC: %s" %str(e))
@@ -67,10 +71,15 @@ class PCInterface(object):
 			self.connection.send(byte_array)
 			#self.connection.sendto(bytes(message + '\n'), self.address)
 			print("Send to PC: " , message)
-		except Exception as e:
-			print("Cannot Write to PC ", str(e))
-			self.isConnected = False
-			self.connection.close()
+		except ConnectionResetError:
+			print("Failed to send to PC: ConnectionResetError")
+			self.disconnect()
+		except socket.error:
+			print("Failed to send to PC: socket.error")
+			self.disconnect()
+		except IOError as e:
+			print("Failed to send to PC: %s" %str(e))
+			self.disconnect()
 
 	def readFromPC (self):
 		self.threadListening = True
@@ -83,8 +92,16 @@ class PCInterface(object):
 			print ('PC message reading failed. Exception Error : %s' % str(e))
 			self.threadListening = False
 			self.isConnected = False
-			self.connection.close()
 			return
 
-
+	def algoRun(self, msg):
+		if msg != 'terminate':
+			parsedMsg = msg.split(',')
+			print("Reading algorithm data: ", parsedMsg)	
+			self.path_data+= parsedMsg
+		else:
+			print("Saving list to txt file. Data: ", self.path_data)
+			with open('algofile.txt', 'w') as filehandle:
+				for listitem in self.path_data:
+					filehandle.write('%s\n' % listitem)
 		
