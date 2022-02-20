@@ -38,11 +38,15 @@ class RaspberryPi(threading.Thread):
         # True if path is being deployed
         self.pathDeployed = False
 
+        self.number_of_paths = 5
+
         # initialize Queue
         self.path_queue = Queue()
-        self.pc_queue = Queue()
+        self.al_pc_queue = Queue()
+        self.img_pc_queue = Queue()
         self.android_queue = Queue()
         self.rpi_queue = Queue()
+        self.manual_queue = Queue()
 
         # run command_forwarder thread
         threading.Thread(target=self.command_forwarder).start()
@@ -122,10 +126,18 @@ class RaspberryPi(threading.Thread):
         while True:
             androidMessage = self.androidThread.readFromAndroid()
             # add queue for obstacle
-            # add queue for STM Manual
             if androidMessage is not None:
-                self.android_queue.put(androidMessage)
                 print("Read From Android: ", str(androidMessage))
+                parsedMsg = androidMessage.split(',')
+                # Manual Controls
+                if androidMessage in ["f010", "b010", "r010", "l010", "v010", "s000", "w000"]:
+                    self.manual_queue.put(androidMessage)
+                # Obstacle Information
+                if parsedMsg[0] == 'AL':
+                    self.al_pc_queue.put(androidMessage)
+                # Start STM (Start Button Initialize)
+                if androidMessage == 'START PATH':
+                    self.rpi_queue.put(androidMessage)
 
     def writeToPC(self, message):
         if self.pcThread.isConnected and message is not None:
@@ -142,12 +154,23 @@ class RaspberryPi(threading.Thread):
             self.serialMsg = self.STMThread.readFromSTM()
             if self.serialMsg is not None:
                 print("Read from STM: ", str(self.serialMsg))
+                if self.serialMsg != 'ACK':
+                    self.rpi_queue.put(self.serialMsg)
 
     def readFromPC(self):
         path_data = []
         while True:
             pcMessage = self.pcThread.readFromPC()
             if pcMessage is not None:
+                # image Recognition information
+                parsedMsg = pcMessage.split(',')
+
+                if parsedMsg[0] == 'AN':
+                    self.android_queue.put(pcMessage)
+
+                elif pcMessage == 'Finish Recognition':
+                    self.rpi_queue.put(pcMessage)
+
                 if pcMessage == 'Hello from algo team':
                     print("Load algorithm data..")
                     with self.path_queue.mutex:
@@ -161,12 +184,12 @@ class RaspberryPi(threading.Thread):
                     self.pathReady = self.insertPath(course_path)  # insert path onto queue
                     self.pcThread.disconnectFromPC()
                 elif not self.pathReady:
-                    self.getAlgoData(pcMessage, path_data)  # insert msg onto path_data list
-                # image Recognition
-                if pcMessage == 'AL':
-                    self.writeToAndroid(pcMessage)
+                    parsedMsg = pcMessage.split(',')
+                    if parsedMsg[0] == 'ST':
+                        print("Reading algorithm data: ", parsedMsg)
+                        path_data += parsedMsg
+                    # path_data = self.getAlgoData(pcMessage, path_data)  # insert msg onto path_data list
 
-    # insert strings onto list
     @staticmethod
     def getAlgoData(msg, path_data):
         parsedMsg = msg.split(',')
@@ -185,45 +208,61 @@ class RaspberryPi(threading.Thread):
                     path = self.path_queue.get()
                     self.STMThread.writeToSTM(path)
                 elif path == 'w':
-                    self.pathDeployed = True
-                    self.pc_queue.put('Start Recognition')
+                    self.img_pc_queue.put('Start Recognition')
                     break
 
     def command_forwarder(self):
         while True:
-            if not self.android_queue.empty():
-                msg = self.android_queue.get()
+
+            if not self.rpi_queue.empty():
+                msg = self.rpi_queue.get()
+                # Start Button
                 if msg == 'START PATH':
                     self.executePath()
+                    self.pathDeployed = True
+                    continue
 
-                # manual controls
-                if msg in ["f010", "b010", "r010", "l010", "v010", "s000", "w000"]:
-                    self.STMThread.writeToSTM(msg)
-                    while True:
-                        if self.serialMsg == 'ACK':
-                            break
-            if not self.pc_queue.empty():
-                msg = self.pc_queue.get()
-                if msg == 'Start Recognition':
-                    self.writeToPC(msg)
+                # Finish 1 path
+                if msg == 'Finish Recognition':
+                    self.executePath()
+                    self.number_of_paths -= 1
+                    # self.android_queue.put('START PATH')
+                    continue
 
-            # if STM send finish route
-            # stop when route is finish
-            # STM send message to RPI when it finally stop
-            # ['target']:['payload']
-            # RPI received msg to take picture
-            # RPI send picture to PC
-            if self.serialMsg == 'Finish Route':
-                # RPI received msg to take picture
-                byteMessageArr = self.takePictures(5)  # RPI takes pictures and sends pictures over to PC
-                for message in byteMessageArr:
-                    self.writeToPC(message)
-        # rpi need to read from pc to get the string back
+            if not self.android_queue.empty():
+                msg = self.android_queue.get()
+                parsedMsg = msg.split(',')
+                if parsedMsg[0] == 'AN':
+                    self.androidThread.writeToAndroid(msg)
 
-    # PC send to RPI image_id 'AN','String' or ['target']:['payload']
-    # image_id send to android
-    # repeat send android Msg
-    # pathDeployed = True
+            # Manual Controls
+            if not self.manual_queue.empty() and not self.pathDeployed:
+                msg = self.manual_queue.get()
+                self.STMThread.writeToSTM(msg)
+                while True:
+                    if self.serialMsg == 'ACK':
+                        break
+                continue
+
+            if not self.al_pc_queue.empty():
+                msg = self.al_pc_queue.get()
+                parsedMsg = msg.split(',')
+                if parsedMsg[0] == 'AL':
+                    self.pcThread.writeToPC(msg)
+
+            if not self.img_pc_queue.empty():
+                msg = self.img_pc_queue.get()
+                if msg == 'Finish Route':
+                    # RPI received msg to take picture
+                    byteMessageArr = self.takePictures(5)  # RPI takes pictures and sends pictures over to PC
+                    for message in byteMessageArr:
+                        self.writeToPC(message)
+                    continue
+            # Finish all path
+            if self.number_of_paths is 0:
+                print("All Path is completed")
+                # self.disconnectAll()
+                # sys.exit()
 
     def takePictures(self, iterations):
         camera = PiCamera()
@@ -262,6 +301,7 @@ if __name__ == "__main__":
                 main.primed = True
                 time.sleep(2)
                 main.writeToAndroid("READY TO START")
+                print("System All Green")
 
     except Exception as e:
         print(str(e))
