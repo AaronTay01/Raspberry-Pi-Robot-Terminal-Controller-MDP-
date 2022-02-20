@@ -268,16 +268,37 @@ class RaspberryPi(threading.Thread):
 			# ['target']:['payload']
 			#RPI received msg to take picture
 			#RPI send picture to PC
-			#if self.serialMsg == 'Finish Route':
+			if self.serialMsg == 'Finish Route':
 				#RPI received msg to take picture
-				#RPI send picture to PC
-			#	print()
+				byteMessageArr = self.takePictures(5) #RPI takes pictures and sends pictures over to PC
+				for message in byteMessageArr:
+					self.writeToPC(message)
+				# rpi need to read from pc to get the string back
 			#PC send to RPI image_id 'AN','String' or ['target']:['payload']
 			#image_id send to android
 			#repeat send android Msg 
 			#pathDeployed = True
-
 	
+	def takePictures(self, iterations):
+		camera = PiCamera()
+		camera.start_preview()
+		time.sleep(5) # to let the camera focus
+		byteArr = []
+		for i in iterations:
+			filename = '/tmp/picture_' + str(i) + '.jpg'
+			camera.capture(filename)
+			filesize = os.path.getsize(filename)
+			# send the filename and filesize
+			self.socket.send(f"{filename}{SEPARATOR}{filesize}".encode())
+			time.sleep(0.5) # in case camera is still moving
+			with open("img.png", "rb") as image:
+				f = image.read()
+				b = bytearray(f)
+				byteArr.append(b)
+
+		camera.stop_preview()
+		return byteArr
+
 
 if __name__ == "__main__":
 	print("Program Starting")
