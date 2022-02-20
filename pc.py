@@ -1,10 +1,5 @@
-import json
 import socket
-import sys
-import traceback
-import errno
 from setting import *
-import time
 
 """"
 Client
@@ -33,7 +28,7 @@ class PCInterface(object):
     def connectToPC(self):
         try:
             # 1. Solution for thread-related issues: always attempt to disconnect first before connecting
-            self.disconnect()
+            # self.disconnectFromPC()
 
             # 2. Establish and bind socket
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

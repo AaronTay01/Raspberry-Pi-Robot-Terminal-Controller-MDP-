@@ -87,7 +87,7 @@ class RaspberryPi(threading.Thread):
                     threading.Thread(target=self.readFromAndroid).start()  # start Android socket listener thread
                 except Exception as error:
                     print("Android threading error: %s" % str(error))
-                    self.androidThread.isConnected = False
+                    self.androidThread.disconnectFromAndroid()
         # STM control loop
         if not self.STMThread.isConnected:
             self.STMThread.connectToSTM()
@@ -97,7 +97,7 @@ class RaspberryPi(threading.Thread):
                     threading.Thread(target=self.readFromSTM).start()  # start STM listener thread
                 except Exception as error:
                     print("STM threading error: %s" % str(error))
-                    self.STMThread.isConnected = False
+                    self.STMThread.disconnectFromSTM()
         # PC control loop
         if not self.pcThread.isConnected:
             self.pcThread.connectToPC()
@@ -107,7 +107,7 @@ class RaspberryPi(threading.Thread):
                     threading.Thread(target=self.readFromPC).start()  # start PC socket listener thread
                 except Exception as error:
                     print("PC threading error: %s" % str(error))
-                    self.pcThread.isConnected = False
+                    self.pcThread.disconnectFromPC()
 
     def disconnectAll(self):
         self.STMThread.disconnectFromSTM()
@@ -167,12 +167,14 @@ class RaspberryPi(threading.Thread):
                     self.writeToAndroid(pcMessage)
 
     # insert strings onto list
-    def getAlgoData(self, msg, path_data):
+    @staticmethod
+    def getAlgoData(msg, path_data):
         parsedMsg = msg.split(',')
         if parsedMsg[0] == 'ST':
             print("Reading algorithm data: ", parsedMsg)
             path_data += parsedMsg
             return path_data
+        return path_data
 
     # execute algorithm path
     def executePath(self):
