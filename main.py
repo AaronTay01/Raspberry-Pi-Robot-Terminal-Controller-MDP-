@@ -8,6 +8,7 @@ import threading
 import os
 from utils import format_for
 from multiprocessing import Process, Queue
+from picamera import PiCamera
 
 #import argparse
 #import cv2
@@ -18,6 +19,8 @@ import time
 from threading import Thread
 #import importlib.util
 
+SEPARATOR = "<SEPARATOR>"
+BUFFER_SIZE = 4096 # send 4096 bytes each time step
 
 class RaspberryPi(threading.Thread):
 	def __init__(self):
