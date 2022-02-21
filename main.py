@@ -5,15 +5,14 @@ import threading
 import os
 from utils import format_for
 from multiprocessing import Process, Queue
-from picamera import PiCamera
 from multiprocessing import Queue
+from image import takePictures
 
 # import argparse
 # import cv2
 # import numpy as np
 # import sys
 import time
-
 
 def readTxtFile():
     with open('algo file.txt') as f:
@@ -26,9 +25,6 @@ def saveToTxtFile(path_data):
     with open('algo file.txt', 'w') as fileHandle:
         for item in path_data:
             fileHandle.write('%s\n' % item)
-
-SEPARATOR = "<SEPARATOR>"
-BUFFER_SIZE = 4096 # send 4096 bytes each time step
 
 class RaspberryPi(threading.Thread):
     def __init__(self):
@@ -87,7 +83,7 @@ class RaspberryPi(threading.Thread):
 
     # threading
     def run(self):
-        # Android control loop
+        '''# Android control loop
         if not self.androidThread.isConnected:
             self.androidThread.connectToAndroid()
         elif self.androidThread.isConnected:
@@ -106,7 +102,7 @@ class RaspberryPi(threading.Thread):
                     threading.Thread(target=self.readFromSTM).start()  # start STM listener thread
                 except Exception as error:
                     print("STM threading error: %s" % str(error))
-                    self.STMThread.disconnectFromSTM()
+                    self.STMThread.disconnectFromSTM()'''
         # PC control loop
         if not self.pcThread.isConnected:
             self.pcThread.connectToPC()
@@ -166,7 +162,13 @@ class RaspberryPi(threading.Thread):
         path_data = []
         while True:
             pcMessage = self.pcThread.readFromPC()
+            print(pcMessage)
             if pcMessage is not None:
+                # testing first!
+                if pcMessage == "Hello, world!":
+                    self.img_pc_queue.put("Finish Route")
+                    self.pcThread.writeToPC("testing from rpi")
+
                 # image Recognition information
                 parsedMsg = pcMessage.split(',')
 
@@ -259,35 +261,17 @@ class RaspberryPi(threading.Thread):
                 msg = self.img_pc_queue.get()
                 if msg == 'Finish Route':
                     # RPI received msg to take picture
-                    byteMessageArr = self.takePictures(5)  # RPI takes pictures and sends pictures over to PC
-                    for message in byteMessageArr:
-                        self.writeToPC(message)
-                    continue
+                    for i in range(5): # RPI takes pictures and sends pictures over to PC
+                        encodedString = takePictures()
+                        self.writeToPC(encodedString)
+                        print("image " + str(i) + "sent!")
+                    # get 'PC received images from RPI' message from rpi
+                    # carry on with route, at the back just wait for string from rpi again to send image string
             # Finish all path
-            if self.number_of_paths is 0:
+            if self.number_of_paths == 0:
                 print("All Path is completed")
                 # self.disconnectAll()
                 # sys.exit()
-
-    def takePictures(self, iterations):
-        camera = PiCamera()
-        camera.start_preview()
-        time.sleep(5)  # to let the camera focus
-        byteArr = []
-        for i in iterations:
-            filename = '/tmp/picture_' + str(i) + '.jpg'
-            camera.capture(filename)
-            filesize = os.path.getsize(filename)
-            # send the filename and filesize
-            self.socket.send(f"{filename}{SEPARATOR}{filesize}".encode())
-            time.sleep(0.5)  # in case camera is still moving
-            with open("img.png", "rb") as image:
-                f = image.read()
-                b = bytearray(f)
-                byteArr.append(b)
-
-        camera.stop_preview()
-        return byteArr
 
 
 if __name__ == "__main__":
