@@ -164,11 +164,6 @@ class RaspberryPi(threading.Thread):
             pcMessage = self.pcThread.readFromPC()
             print(pcMessage)
             if pcMessage is not None:
-                # testing first!
-                if pcMessage == "Hello, world!":
-                    self.img_pc_queue.put("Finish Route")
-                    self.pcThread.writeToPC("testing from rpi")
-
                 # image Recognition information
                 parsedMsg = pcMessage.split(',')
 
@@ -265,8 +260,26 @@ class RaspberryPi(threading.Thread):
                         encodedString = takePictures()
                         self.writeToPC(encodedString)
                         print("image " + str(i) + "sent!")
-                    # get 'PC received images from RPI' message from rpi
-                    # carry on with route, at the back just wait for string from rpi again to send image string
+                    msg = self.img_pc_queue.get()
+                    if msg == 'PC received images from RPI':
+                        continue # carry on to next path
+                        # rpi will wait for string to pass to android in the background
+                if msg == "A5": # this is the checklist task
+                    print("Starting A5 Task")
+                    while True:
+                        encodedString = takePictures()
+                        self.writeToPC(encodedString) # sends image to PC
+                        print("image for A5 sent!")
+                        imageId = self.pcThread.readFromPC()
+                        if imageId == "AN,30":
+                            self.writeToSTM("f100")
+                            self.writeToSTM("r090")
+                        else:
+                            imageIdStr = imageId.split(",")[1]
+                            print("image id " + imageIdStr + " detected!")
+                            print("Task A5 completed")
+                            break
+                    
             # Finish all path
             if self.number_of_paths == 0:
                 print("All Path is completed")
