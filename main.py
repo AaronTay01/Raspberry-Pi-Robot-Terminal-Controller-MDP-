@@ -218,7 +218,6 @@ class RaspberryPi(threading.Thread):
 
     def command_forwarder(self):
         while True:
-
             if not self.rpi_queue.empty():
                 msg = self.rpi_queue.get()
                 # Start Button
@@ -245,8 +244,8 @@ class RaspberryPi(threading.Thread):
                 msg = self.manual_queue.get()
                 self.STMThread.writeToSTM(msg)
                 while True:
-                    if msg == 'F100':
-                        break
+                    # if msg == 'F100':
+                    break
                 continue
 
             if not self.al_pc_queue.empty():
@@ -290,21 +289,13 @@ class RaspberryPi(threading.Thread):
 
     def testRunSTM(self):
         time.sleep(3)
-        # main.manual_queue.put("f100")
-        main.STMThread.writeToSTM("f100")
+        # main.manual_queue.put("l100")
+        # time.sleep(0.1)
+        # main.manual_queue.put("l100")
+        main.STMThread.writeToSTM("w100\n")
         time.sleep(0.1)
-        main.STMThread.writeToSTM("f100")
-        time.sleep(0.1)
-        main.STMThread.writeToSTM("f100")
-        time.sleep(0.1)
-        main.STMThread.writeToSTM("f100")
-        main.STMThread.writeToSTM("f100")
-        main.STMThread.writeToSTM("f100")
-        main.STMThread.writeToSTM("f100")
-        main.STMThread.writeToSTM("f100")
-        main.STMThread.writeToSTM("f100")
-        main.STMThread.writeToSTM("f100")
-        main.STMThread.writeToSTM("f100")
+        main.STMThread.writeToSTM("w100\n")
+
 
 
 def handler(signal_received, frame):

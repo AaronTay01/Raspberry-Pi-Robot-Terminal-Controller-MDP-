@@ -69,8 +69,11 @@ class STMRobot:
 	def readFromSTM(self):
 		self.threadListening = True
 		try:
-			msg = self.ser.readline().lstrip(b"\x00")
+			# msg = self.ser.readline().lstrip(b"\x00")
+			msg = self.ser.readline()
 			print(msg)
+			# if msg.find('\x00') == -1:
+			#	msg = msg.lstrip(b"\x00").decode("utf-8")
 			msg = msg.decode("utf-8").strip()
 			# receivedMsg = msg.decode('utf-8')
 			# receivedMsg = str(receivedMsg).strip()
