@@ -1,4 +1,3 @@
-import os, sys
 import serial
 import time
 from setting import *
@@ -6,13 +5,23 @@ from setting import *
 
 class STMRobot:
 	def __init__(self):
-		self.port = "/dev/ttyUSB1"
-		self.baudRate = STM_BAUDRATE
 		self.ser = None
+
 		self.isConnected = False
 		self.threadListening = False
 
 	def connectToSTM(self):
+		try:
+			self.ser = serial.Serial(SERIAL_PORT0, STM_BAUDRATE)
+			print("Connected to STM")
+			self.isConnected = True
+		except Exception as e:
+			print("No Connection is found... %s" % str(e))
+			self.isConnected = False
+			self.threadListening = False
+			self.ser.close()
+
+	'''def connectToSTM2(self):
 		time.sleep(1)
 		print("Connecting to STM")
 		if self.ser:
@@ -33,7 +42,7 @@ class STMRobot:
 				self.isConnected = False
 				self.threadListening = False
 				if self.ser:
-					self.ser.close()
+					self.ser.close()'''
 
 
 	def disconnectFromSTM(self):
@@ -47,24 +56,27 @@ class STMRobot:
 
 	def writeToSTM(self, msg):
 		try:
-			self.ser.write(str.encode(msg))
+			# self.ser.write(str.encode(msg))
+			self.ser.write(msg.encode("utf-8"))
 			print("Sent to STM: %s" % msg)
 		except OSError as e:
 			print(e)
 			self.disconnectFromSTM()
 		except Exception as e:
-			print("Failed to send message to STM. Exception Error : %s" % str(e))
 			self.disconnectFromSTM()
+			print("Failed to send message to STM. Exception Error : %s" % str(e))
 
 	def readFromSTM(self):
 		self.threadListening = True
 		try:
-			msg = self.ser.readline()
-			#print("msg: ", str(msg))
-			receivedMsg = msg.decode('utf-8')
-			receivedMsg = str(receivedMsg)
-			print("Received from STM: %s" % receivedMsg)
-			return receivedMsg
+			msg = self.ser.readline().lstrip(b"\x00")
+			print(msg)
+			msg = msg.decode("utf-8").strip()
+			# receivedMsg = msg.decode('utf-8')
+			# receivedMsg = str(receivedMsg).strip()
+			# print("Received from STM: %s" % msg)
+			return msg
 		except Exception as e:
-			print("Failed to receive message from STM: ", str(e))
 			self.disconnectFromSTM()
+			print("Failed to receive message from STM", str(e))
+			raise e

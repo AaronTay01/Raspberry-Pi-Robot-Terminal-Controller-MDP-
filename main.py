@@ -1,16 +1,16 @@
-from stm import *
-from android import *
-from pc import *
 import threading
-import os
-from utils import format_for
-from multiprocessing import Queue
-from signal import signal, SIGINT
 # import argparse
 # import cv2
 # import numpy as np
 # import sys
 import time
+from multiprocessing import Queue
+
+from android import *
+from image import takePictures
+from pc import *
+from stm import *
+
 
 def readTxtFile():
     with open('algo file.txt') as f:
@@ -23,6 +23,7 @@ def saveToTxtFile(path_data):
     with open('algo file.txt', 'w') as fileHandle:
         for item in path_data:
             fileHandle.write('%s\n' % item)
+
 
 class RaspberryPi(threading.Thread):
     def __init__(self):
@@ -57,7 +58,6 @@ class RaspberryPi(threading.Thread):
 
         # run command_forwarder thread
         threading.Thread(target=self.command_forwarder).start()
-
 
     # print algo path from queue (Only for testing)
     def printPath(self):
@@ -97,7 +97,9 @@ class RaspberryPi(threading.Thread):
         elif self.STMThread.isConnected:
             if not self.STMThread.threadListening:
                 try:
-                    threading.Thread(target=self.readFromSTM).start()  # start STM listener thread
+                    t = threading.Thread(target=self.readFromSTM)
+                    t.daemon = True
+                    t.start()  # start STM listener thread
                 except Exception as error:
                     print("STM threading error: %s" % str(error))
                     self.STMThread.disconnectFromSTM()
@@ -113,9 +115,12 @@ class RaspberryPi(threading.Thread):
                     self.pcThread.disconnectFromPC()'''
 
     def disconnectAll(self):
-        self.STMThread.disconnectFromSTM()
-        self.androidThread.disconnectFromAndroid()
-        self.pcThread.disconnectFromPC()
+        if self.STMThread.isConnected:
+            self.STMThread.disconnectFromSTM()
+        if self.androidThread.isConnected:
+            self.androidThread.disconnectFromAndroid()
+        if self.pcThread.isConnected():
+            self.pcThread.disconnectFromPC()
 
     def writeToAndroid(self, message):
         if self.androidThread.isConnected and message is not None:
@@ -150,13 +155,11 @@ class RaspberryPi(threading.Thread):
 
     def readFromSTM(self):
         while True:
-            #remove \n
             serialMsg = self.STMThread.readFromSTM()
-            print("Read from STM: ", str(serialMsg))
-            if len(str(serialMsg)) > 0:
-                if serialMsg != 'ACK':
-                    self.rpi_queue.put(serialMsg)
-                #self.rpi_queue.put(serialMsg)
+            print("Read from STM:", serialMsg)
+            if serialMsg != 'ACK':
+                self.rpi_queue.put(serialMsg)
+            # self.rpi_queue.put(serialMsg)
 
     def readFromPC(self):
         path_data = []
@@ -213,26 +216,6 @@ class RaspberryPi(threading.Thread):
                     self.img_pc_queue.put('Start Recognition')
                     break
 
-    def takePictures(self):
-        # Create the in-memory stream
-        stream = io.BytesIO()
-        with PiCamera() as camera:
-            camera.resolution = (640, 480)
-            camera.start_preview()
-            time.sleep(2)
-            camera.capture(stream, format='jpeg')
-            # "Rewind" the stream to the beginning so we can read its content
-        stream.seek(0)
-        image = Image.open(stream)
-        image.save('tmp/image.jpeg', 'jpeg')
-        file = open("tmp/image.jpeg", "rb")
-        encodedString = base64.b64encode(file.read())
-        remainder = len(encodedString) % 1024
-        emptyString = " " * (remainder)
-        emptyString = str.encode(emptyString)
-        encodedString = encodedString + emptyString
-        return encodedString
-
     def command_forwarder(self):
         while True:
 
@@ -276,19 +259,19 @@ class RaspberryPi(threading.Thread):
                 msg = self.img_pc_queue.get()
                 if msg == 'Finish Route':
                     # RPI received msg to take picture
-                    for i in range(5): # RPI takes pictures and sends pictures over to PC
-                        encodedString = self.takePictures()
+                    for i in range(5):  # RPI takes pictures and sends pictures over to PC
+                        encodedString = takePictures()
                         self.writeToPC(encodedString)
                         print("image " + str(i) + "sent!")
                     msg = self.img_pc_queue.get()
                     if msg == 'PC received images from RPI':
-                        continue # carry on to next path
+                        continue  # carry on to next path
                         # rpi will wait for string to pass to android in the background
-                if msg == "A5": # this is the checklist task
+                if msg == "A5":  # this is the checklist task
                     print("Starting A5 Task")
                     while True:
                         encodedString = takePictures()
-                        self.writeToPC(encodedString) # sends image to PC
+                        self.writeToPC(encodedString)  # sends image to PC
                         print("image for A5 sent!")
                         imageId = self.pcThread.readFromPC()
                         if imageId == "AN,30":
@@ -298,7 +281,7 @@ class RaspberryPi(threading.Thread):
                             print("image id " + imageIdStr + " detected!")
                             print("Task A5 completed")
                             break
-                    
+
             # Finish all path
             if self.number_of_paths == 0:
                 print("All Path is completed")
@@ -307,39 +290,43 @@ class RaspberryPi(threading.Thread):
 
     def testRunSTM(self):
         time.sleep(3)
-        #main.manual_queue.put("f100")
+        # main.manual_queue.put("f100")
+        main.STMThread.writeToSTM("f100")
+        time.sleep(0.1)
+        main.STMThread.writeToSTM("f100")
+        time.sleep(0.1)
+        main.STMThread.writeToSTM("f100")
+        time.sleep(0.1)
         main.STMThread.writeToSTM("f100")
         main.STMThread.writeToSTM("f100")
-        main.STMThread.writeToSTM("v100")
-        main.STMThread.writeToSTM("r100")
-        main.STMThread.writeToSTM("l100")
-        
+        main.STMThread.writeToSTM("f100")
+        main.STMThread.writeToSTM("f100")
+        main.STMThread.writeToSTM("f100")
+        main.STMThread.writeToSTM("f100")
+        main.STMThread.writeToSTM("f100")
+        main.STMThread.writeToSTM("f100")
+
 
 def handler(signal_received, frame):
-    #res = input("Ctrl-c was pressed. Do you really want to exit? y/n ")
-    #if res == 'y':
+    # res = input("Ctrl-c was pressed. Do you really want to exit? y/n ")
+    # if res == 'y':
     print("Ctrl-c was pressed. Exit ")
     try:
-        # main.disconnectAll()
-        if main.STMThread.isConnected:
-            main.STMThread.disconnectFromSTM()
-        if main.androidThread.isConnected:
-            main.androidThread.disconnectFromAndroid()
-        if main.pcThread.isConnected:
-            main.pcThread.disconnectFromPC()
+        main.disconnectAll()
         print("Program Interrupted")
         sys.exit(0)
     except Exception as e:
         print("Error: ", str(e))
         sys.exit(0)
 
+
 if __name__ == "__main__":
     print("Program Starting")
-    signal(SIGINT, handler)
+    # signal(SIGINT, handler)
     main = RaspberryPi()
     try:
         print("Starting MultiTreading")
-        if main.STMThread.isConnected == True:
+        if main.STMThread.isConnected:
             main.testRunSTM()
         while True:
             main.run()
@@ -356,8 +343,8 @@ if __name__ == "__main__":
 
     except Exception as e:
         print(str(e))
-        #main.disconnectAll()
+        main.disconnectAll()
     except KeyboardInterrupt as e:
         print("Terminating program")
-        #main.disconnectAll()
+        main.disconnectAll()
         print("Program Terminated")
