@@ -2,9 +2,6 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="6a7049e0-4b8e-4d86-80f0-541afa47888a" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/deployment.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/MDP_Grp38.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/MDP_Grp38.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/pc.py" beforeDir="false" afterPath="$PROJECT_DIR$/pc.py" afterDir="false" />
@@ -137,7 +134,7 @@
       <updated>1645336319497</updated>
       <workItem from="1645336322958" duration="12722000" />
       <workItem from="1645605665637" duration="3286000" />
-      <workItem from="1645608989149" duration="2845000" />
+      <workItem from="1645608989149" duration="4517000" />
     </task>
     <servers />
   </component>

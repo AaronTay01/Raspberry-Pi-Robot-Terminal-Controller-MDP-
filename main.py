@@ -152,8 +152,8 @@ class RaspberryPi(threading.Thread):
     def readFromSTM(self):
         while True:
             serialMsg = self.STMThread.readFromSTM()
+            print("Read from STM: ", str(serialMsg))
             if len(serialMsg) > 0:
-                print("Read from STM: ", str(serialMsg))
                 if serialMsg != 'ACK':
                     self.rpi_queue.put(serialMsg)
                 #self.rpi_queue.put(serialMsg)
@@ -306,23 +306,20 @@ class RaspberryPi(threading.Thread):
                 # self.disconnectAll()
                 # sys.exit()
 
+    def testRunSTM(self):
+        time.sleep(3)
+        #main.manual_queue.put("f100")
+        main.STMThread.writeToSTM("f100")
+
 
 if __name__ == "__main__":
     print("Program Starting")
     main = RaspberryPi()
     try:
         print("Starting MultiTreading")
-        time.sleep(3)
-        main.manual_queue.put("f100")
-        for i in range(1):
-            print("run STM ", str(i))
-            #main.manual_queue.put("f100")
-            #main.writeToSTM("f100")
-            #main.writeToSTM("v100")
-
+        main.testRunSTM()
         while True:
-            if main.STMThread.isConnected is False:
-                main.run()
+            main.run()
             # Priming
             # add STM and PC is connected
             if (not main.primed and main.pathReady

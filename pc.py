@@ -59,7 +59,7 @@ class PCInterface(object):
             self.connected = False
             self.threadListening = False
             print("Disconnected from PC successfully.")
-        except socket_error as e:
+        except socket.error as e:
             print ("Socket error ", str(e))
         except Exception as e:
             print("Failed to disconnect from PC: %s" % str(e))
