@@ -5,8 +5,7 @@ import threading
 import os
 from utils import format_for
 from multiprocessing import Queue
-#from image import takePictures
-
+from signal import signal, SIGINT
 # import argparse
 # import cv2
 # import numpy as np
@@ -151,9 +150,10 @@ class RaspberryPi(threading.Thread):
 
     def readFromSTM(self):
         while True:
+            #remove \n
             serialMsg = self.STMThread.readFromSTM()
             print("Read from STM: ", str(serialMsg))
-            if len(serialMsg) > 0:
+            if len(str(serialMsg)) > 0:
                 if serialMsg != 'ACK':
                     self.rpi_queue.put(serialMsg)
                 #self.rpi_queue.put(serialMsg)
@@ -309,14 +309,38 @@ class RaspberryPi(threading.Thread):
         time.sleep(3)
         #main.manual_queue.put("f100")
         main.STMThread.writeToSTM("f100")
+        main.STMThread.writeToSTM("f100")
+        main.STMThread.writeToSTM("v100")
+        main.STMThread.writeToSTM("r100")
+        main.STMThread.writeToSTM("l100")
+        
 
+def handler(signal_received, frame):
+    #res = input("Ctrl-c was pressed. Do you really want to exit? y/n ")
+    #if res == 'y':
+    print("Ctrl-c was pressed. Exit ")
+    try:
+        # main.disconnectAll()
+        if main.STMThread.isConnected:
+            main.STMThread.disconnectFromSTM()
+        if main.androidThread.isConnected:
+            main.androidThread.disconnectFromAndroid()
+        if main.pcThread.isConnected:
+            main.pcThread.disconnectFromPC()
+        print("Program Interrupted")
+        sys.exit(0)
+    except Exception as e:
+        print("Error: ", str(e))
+        sys.exit(0)
 
 if __name__ == "__main__":
     print("Program Starting")
+    signal(SIGINT, handler)
     main = RaspberryPi()
     try:
         print("Starting MultiTreading")
-        main.testRunSTM()
+        if main.STMThread.isConnected == True:
+            main.testRunSTM()
         while True:
             main.run()
             # Priming
@@ -332,8 +356,8 @@ if __name__ == "__main__":
 
     except Exception as e:
         print(str(e))
-        main.disconnectAll()
+        #main.disconnectAll()
     except KeyboardInterrupt as e:
         print("Terminating program")
-        main.disconnectAll()
+        #main.disconnectAll()
         print("Program Terminated")
