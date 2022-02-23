@@ -18,11 +18,14 @@ class PCInterface(object):
     def __init__(self):
         self.connected = None
         self.socket = None
+
         self.host = RPI_WIFI_IP
         self.port = WIFI_PORT
-        self.isConnected = False
+
         self.connection = None
         self.address = None
+
+        self.isConnected = False
         self.threadListening = False
 
     def connectToPC(self):
@@ -34,7 +37,7 @@ class PCInterface(object):
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             # Wi-Fi changes to self.host
-            self.socket.bind(('192.168.38.1', self.port))
+            self.socket.bind(('', self.port))
 
             self.socket.listen(3)
             print("Waiting for connection from PC........")
@@ -48,6 +51,7 @@ class PCInterface(object):
             print("Connecting to PC Error : %s" % str(e))
             self.isConnected = False
             self.threadListening = False
+            self.socket.close()
 
     def disconnectFromPC(self):
         try:
@@ -55,6 +59,8 @@ class PCInterface(object):
             self.connected = False
             self.threadListening = False
             print("Disconnected from PC successfully.")
+        except socket_error as e:
+            print ("Socket error ", str(e))
         except Exception as e:
             print("Failed to disconnect from PC: %s" % str(e))
 

@@ -4,9 +4,8 @@ from pc import *
 import threading
 import os
 from utils import format_for
-from multiprocessing import Process, Queue
 from multiprocessing import Queue
-from image import takePictures
+#from image import takePictures
 
 # import argparse
 # import cv2
@@ -49,17 +48,17 @@ class RaspberryPi(threading.Thread):
         self.rpi_queue = Queue()
         self.manual_queue = Queue()
 
-        # run command_forwarder thread
-        threading.Thread(target=self.command_forwarder).start()
-
         # get algo path from txt file
         course_path = readTxtFile()
 
         # insert algo path to queue
         self.pathReady = self.insertPath(course_path)
 
-        # serial Received Message
-        self.serialMsg = None
+        self.run()
+
+        # run command_forwarder thread
+        threading.Thread(target=self.command_forwarder).start()
+
 
     # print algo path from queue (Only for testing)
     def printPath(self):
@@ -92,7 +91,7 @@ class RaspberryPi(threading.Thread):
                     threading.Thread(target=self.readFromAndroid).start()  # start Android socket listener thread
                 except Exception as error:
                     print("Android threading error: %s" % str(error))
-                    self.androidThread.disconnectFromAndroid()
+                    self.androidThread.disconnectFromAndroid()'''
         # STM control loop
         if not self.STMThread.isConnected:
             self.STMThread.connectToSTM()
@@ -102,9 +101,9 @@ class RaspberryPi(threading.Thread):
                     threading.Thread(target=self.readFromSTM).start()  # start STM listener thread
                 except Exception as error:
                     print("STM threading error: %s" % str(error))
-                    self.STMThread.disconnectFromSTM()'''
+                    self.STMThread.disconnectFromSTM()
         # PC control loop
-        if not self.pcThread.isConnected:
+        '''if not self.pcThread.isConnected:
             self.pcThread.connectToPC()
         elif self.pcThread.isConnected:
             if not self.pcThread.threadListening:
@@ -112,7 +111,7 @@ class RaspberryPi(threading.Thread):
                     threading.Thread(target=self.readFromPC).start()  # start PC socket listener thread
                 except Exception as error:
                     print("PC threading error: %s" % str(error))
-                    self.pcThread.disconnectFromPC()
+                    self.pcThread.disconnectFromPC()'''
 
     def disconnectAll(self):
         self.STMThread.disconnectFromSTM()
@@ -152,11 +151,12 @@ class RaspberryPi(threading.Thread):
 
     def readFromSTM(self):
         while True:
-            self.serialMsg = self.STMThread.readFromSTM()
-            if self.serialMsg is not None:
-                print("Read from STM: ", str(self.serialMsg))
-                if self.serialMsg != 'ACK':
-                    self.rpi_queue.put(self.serialMsg)
+            serialMsg = self.STMThread.readFromSTM()
+            if len(serialMsg) > 0:
+                print("Read from STM: ", str(serialMsg))
+                if serialMsg != 'ACK':
+                    self.rpi_queue.put(serialMsg)
+                #self.rpi_queue.put(serialMsg)
 
     def readFromPC(self):
         path_data = []
@@ -213,6 +213,26 @@ class RaspberryPi(threading.Thread):
                     self.img_pc_queue.put('Start Recognition')
                     break
 
+    def takePictures(self):
+        # Create the in-memory stream
+        stream = io.BytesIO()
+        with PiCamera() as camera:
+            camera.resolution = (640, 480)
+            camera.start_preview()
+            time.sleep(2)
+            camera.capture(stream, format='jpeg')
+            # "Rewind" the stream to the beginning so we can read its content
+        stream.seek(0)
+        image = Image.open(stream)
+        image.save('tmp/image.jpeg', 'jpeg')
+        file = open("tmp/image.jpeg", "rb")
+        encodedString = base64.b64encode(file.read())
+        remainder = len(encodedString) % 1024
+        emptyString = " " * (remainder)
+        emptyString = str.encode(emptyString)
+        encodedString = encodedString + emptyString
+        return encodedString
+
     def command_forwarder(self):
         while True:
 
@@ -242,7 +262,7 @@ class RaspberryPi(threading.Thread):
                 msg = self.manual_queue.get()
                 self.STMThread.writeToSTM(msg)
                 while True:
-                    if self.serialMsg == 'ACK':
+                    if msg == 'F100':
                         break
                 continue
 
@@ -257,7 +277,7 @@ class RaspberryPi(threading.Thread):
                 if msg == 'Finish Route':
                     # RPI received msg to take picture
                     for i in range(5): # RPI takes pictures and sends pictures over to PC
-                        encodedString = takePictures()
+                        encodedString = self.takePictures()
                         self.writeToPC(encodedString)
                         print("image " + str(i) + "sent!")
                     msg = self.img_pc_queue.get()
@@ -292,8 +312,17 @@ if __name__ == "__main__":
     main = RaspberryPi()
     try:
         print("Starting MultiTreading")
+        time.sleep(3)
+        main.manual_queue.put("f100")
+        for i in range(1):
+            print("run STM ", str(i))
+            #main.manual_queue.put("f100")
+            #main.writeToSTM("f100")
+            #main.writeToSTM("v100")
+
         while True:
-            main.run()
+            if main.STMThread.isConnected is False:
+                main.run()
             # Priming
             # add STM and PC is connected
             if (not main.primed and main.pathReady
