@@ -292,8 +292,7 @@ class RaspberryPi(threading.Thread):
                         print("image for A5 sent!")
                         imageId = self.pcThread.readFromPC()
                         if imageId == "AN,30":
-                            self.writeToSTM("f100")
-                            self.writeToSTM("r090")
+                            self.writeToSTM("l090,r090,s030,r090,s030,w000")
                         else:
                             imageIdStr = imageId.split(",")[1]
                             print("image id " + imageIdStr + " detected!")
