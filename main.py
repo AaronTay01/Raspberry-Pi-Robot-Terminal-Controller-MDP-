@@ -287,7 +287,7 @@ class RaspberryPi(threading.Thread):
                         # imageId = 'AN,30'
                         imageId = i
 
-                        movement = "l090,r090,s030,r090,s030,w000"
+                        movement = "l090,l090,s030,l090,s030,w000"
                         movementArr = movement.split(',')
 
                         if imageId == "AN,30":
