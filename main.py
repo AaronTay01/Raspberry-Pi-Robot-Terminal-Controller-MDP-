@@ -81,17 +81,17 @@ class RaspberryPi(threading.Thread):
 
     # threading
     def run(self):
-        time.sleep(1)
-        # Android control loop
-        if not self.androidThread.isConnected:
-            self.androidThread.connectToAndroid()
-        elif self.androidThread.isConnected:
-            if not self.androidThread.threadListening:
-                try:
-                    threading.Thread(target=self.readFromAndroid).start()  # start Android socket listener thread
-                except Exception as error:
-                    print("Android threading error: %s" % str(error))
-                    self.androidThread.disconnectFromAndroid()
+        # time.sleep(1)
+        # # Android control loop
+        # if not self.androidThread.isConnected:
+        #     self.androidThread.connectToAndroid()
+        # elif self.androidThread.isConnected:
+        #     if not self.androidThread.threadListening:
+        #         try:
+        #             threading.Thread(target=self.readFromAndroid).start()  # start Android socket listener thread
+        #         except Exception as error:
+        #             print("Android threading error: %s" % str(error))
+        #             self.androidThread.disconnectFromAndroid()
         # STM control loop
         if not self.STMThread.isConnected:
             self.STMThread.connectToSTM()
@@ -106,18 +106,18 @@ class RaspberryPi(threading.Thread):
                     print("STM threading error: %s" % str(error))
                     self.STMThread.disconnectFromSTM()
         # PC control loop
-        # if not self.pcThread.isConnected:
-        #     self.pcThread.connectToPC()
-        # elif self.pcThread.isConnected:
-        #     if not self.pcThread.threadListening:
-        #         try:
-        #             self.pcThread.threadListening = True
-        #             thread = threading.Thread(target=self.readFromPC)  # start PC socket listener thread
-        #             thread.daemon = True
-        #             thread.start()
-        #         except Exception as error:
-        #             print("PC threading error: %s" % str(error))
-        #             self.pcThread.disconnectFromPC()
+        if not self.pcThread.isConnected:
+            self.pcThread.connectToPC()
+        elif self.pcThread.isConnected:
+            if not self.pcThread.threadListening:
+                try:
+                    self.pcThread.threadListening = True
+                    thread = threading.Thread(target=self.readFromPC)  # start PC socket listener thread
+                    thread.daemon = True
+                    thread.start()
+                except Exception as error:
+                    print("PC threading error: %s" % str(error))
+                    self.pcThread.disconnectFromPC()
 
     def disconnectAll(self):
         if self.STMThread.isConnected:
@@ -181,13 +181,10 @@ class RaspberryPi(threading.Thread):
             if parsedMsg[0] == 'AN':
                 self.android_queue.put(pcMessage)
 
-            elif pcMessage == 'Finish Recognition':
+            elif pcMessage == 'Finish Recognition' or parsedMsg[0] == 'RPI':
                 self.rpi_queue.put(pcMessage)
 
             elif pcMessage == 'A5':
-                self.img_pc_queue.put(pcMessage)
-
-            elif pcMessage == 'Not Found':
                 self.img_pc_queue.put(pcMessage)
 
             elif pcMessage == 'Hello from algo team':
