@@ -19,7 +19,9 @@ class STMRobot:
 			print("No Connection is found... %s" % str(e))
 			self.isConnected = False
 			self.threadListening = False
-			self.ser.close()
+			if self.ser:
+				self.ser.close()
+
 
 	'''def connectToSTM2(self):
 		time.sleep(1)

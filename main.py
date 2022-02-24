@@ -157,9 +157,9 @@ class RaspberryPi(threading.Thread):
         while True:
             serialMsg = self.STMThread.readFromSTM()
             print("Read from STM:", serialMsg)
-            if serialMsg != 'ACK':
-                self.rpi_queue.put(serialMsg)
-            # self.rpi_queue.put(serialMsg)
+            parsedMsg = serialMsg.split(',')
+            if parsedMsg[0] == 'ACK':
+                self.rpi_queue.put(parsedMsg[0])
 
     def readFromPC(self):
         path_data = []
@@ -176,7 +176,10 @@ class RaspberryPi(threading.Thread):
                 elif pcMessage == 'Finish Recognition':
                     self.rpi_queue.put(pcMessage)
 
-                if pcMessage == 'Hello from algo team':
+                elif pcMessage == 'A5':
+                    self.img_pc_queue.put('A5')
+
+                elif pcMessage == 'Hello from algo team':
                     print("Load algorithm data..")
                     with self.path_queue.mutex:
                         self.path_queue.queue.clear()
@@ -243,9 +246,11 @@ class RaspberryPi(threading.Thread):
             if not self.manual_queue.empty() and not self.pathDeployed:
                 msg = self.manual_queue.get()
                 self.STMThread.writeToSTM(msg)
-                while True:
-                    # if msg == 'F100':
-                    break
+                time.sleep(0.1)
+                # while True:
+                #     print(msg)
+                #     if msg == 'ACK':
+                #         break
                 continue
 
             if not self.al_pc_queue.empty():
@@ -256,25 +261,39 @@ class RaspberryPi(threading.Thread):
 
             if not self.img_pc_queue.empty():
                 msg = self.img_pc_queue.get()
-                if msg == 'Finish Route':
+
+                if msg == 'Start Recognition':
                     # RPI received msg to take picture
                     for i in range(5):  # RPI takes pictures and sends pictures over to PC
                         encodedString = takePictures()
-                        self.writeToPC(encodedString)
+                        # self.writeToPC(encodedString)
                         print("image " + str(i) + "sent!")
-                    msg = self.img_pc_queue.get()
-                    if msg == 'PC received images from RPI':
-                        continue  # carry on to next path
-                        # rpi will wait for string to pass to android in the background
-                if msg == "A5":  # this is the checklist task
+
+                # Receive ACK
+                elif msg == 'PC received images from RPI':
+                    # Execute next path after image is taken
+                    self.rpi_queue.put('START PATH')
+
+                elif msg == "A5":  # this is the checklist task
                     print("Starting A5 Task")
-                    while True:
+
+                    imageIdArr = ["AN,30", "AN,30", "AN,30", "AN,20"]
+                    for i in imageIdArr:
                         encodedString = takePictures()
                         self.writeToPC(encodedString)  # sends image to PC
                         print("image for A5 sent!")
-                        imageId = self.pcThread.readFromPC()
+                        # imageId = self.pcThread.readFromPC()
+                        # testing
+                        # imageId = 'AN,30'
+                        imageId = i
+
+                        movement = "l090,r090,s030,r090,s030,w000"
+                        movementArr = movement.split(',')
+
                         if imageId == "AN,30":
-                            self.writeToSTM("l090,r090,s030,r090,s030,w000")
+                            for j in movementArr:
+                                self.manual_queue.put(j)
+                        # image found
                         else:
                             imageIdStr = imageId.split(",")[1]
                             print("image id " + imageIdStr + " detected!")
@@ -292,9 +311,16 @@ class RaspberryPi(threading.Thread):
         # main.manual_queue.put("l100")
         # time.sleep(0.1)
         # main.manual_queue.put("l100")
-        main.STMThread.writeToSTM("w100\n")
+        main.STMThread.writeToSTM("r100")
         time.sleep(0.1)
-        main.STMThread.writeToSTM("w100\n")
+        main.STMThread.writeToSTM("r100")
+        time.sleep(0.1)
+        # val = input("Insert STM Value: ")
+        # time.sleep(0.3)
+        # main.STMThread.writeToSTM(val)
+
+    def testRunA5(self):
+        main.img_pc_queue.put('A5')
 
 
 
@@ -317,9 +343,11 @@ if __name__ == "__main__":
     main = RaspberryPi()
     try:
         print("Starting MultiTreading")
-        if main.STMThread.isConnected:
-            main.testRunSTM()
+        main.testRunA5()
         while True:
+            # if main.STMThread.isConnected:
+                # print()
+                # main.testRunSTM()
             main.run()
             # Priming
             # add STM and PC is connected

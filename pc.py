@@ -51,7 +51,8 @@ class PCInterface(object):
             print("Connecting to PC Error : %s" % str(e))
             self.isConnected = False
             self.threadListening = False
-            self.socket.close()
+            if self.socket:
+                self.socket.close()
 
     def disconnectFromPC(self):
         try:
