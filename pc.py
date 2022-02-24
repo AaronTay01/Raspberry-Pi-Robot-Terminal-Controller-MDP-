@@ -1,5 +1,6 @@
 import socket
 from setting import *
+import os
 
 """"
 Client
@@ -13,7 +14,7 @@ connection = client_socket.makefile('wb')
 """
 
 
-class PCInterface(object):
+class PCInterface:
 
     def __init__(self):
         self.connected = None
@@ -31,7 +32,7 @@ class PCInterface(object):
     def connectToPC(self):
         try:
             # 1. Solution for thread-related issues: always attempt to disconnect first before connecting
-            # self.disconnectFromPC()
+            self.disconnectFromPC()
 
             # 2. Establish and bind socket
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -49,26 +50,24 @@ class PCInterface(object):
 
         except Exception as e:
             print("Connecting to PC Error : %s" % str(e))
-            self.isConnected = False
-            self.threadListening = False
-            if self.socket:
-                self.socket.close()
+            self.disconnectFromPC()
 
     def disconnectFromPC(self):
         try:
-            self.socket.close()
-            self.connected = False
+            if self.socket:
+                self.socket.close()
+            self.isConnected = False
             self.threadListening = False
             print("Disconnected from PC successfully.")
         except socket.error as e:
-            print ("Socket error ", str(e))
+            print("Socket error ", str(e))
         except Exception as e:
             print("Failed to disconnect from PC: %s" % str(e))
 
     def writeToPC(self, message):
         try:
-            encoded_string = message.encode()
-            byte_array = bytearray(encoded_string)
+            # encoded_string = message.encode()
+            byte_array = bytearray(message)
             self.connection.send(byte_array)
             # self.connection.sendto(bytes(message + '\n'), self.address)
             print("Send to PC: ", message)
@@ -83,13 +82,13 @@ class PCInterface(object):
             self.disconnectFromPC()
 
     def readFromPC(self):
-        self.threadListening = True
         try:
             message = self.connection.recv(1024)
             msg = message.decode()
+            if len(msg) == 0: raise
             return msg
 
         except Exception as e:
             print('PC message reading failed. Exception Error : %s' % str(e))
             self.disconnectFromPC()
-            return
+            return None

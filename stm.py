@@ -21,6 +21,7 @@ class STMRobot:
 			self.threadListening = False
 			if self.ser:
 				self.ser.close()
+			time.sleep(1)
 
 
 	'''def connectToSTM2(self):
@@ -69,14 +70,14 @@ class STMRobot:
 			print("Failed to send message to STM. Exception Error : %s" % str(e))
 
 	def readFromSTM(self):
-		self.threadListening = True
 		try:
 			# msg = self.ser.readline().lstrip(b"\x00")
 			msg = self.ser.readline()
-			print(msg)
-			# if msg.find('\x00') == -1:
+			print("Byte msg: ", msg)
+			msg = msg.lstrip(b"\x00")
 			#	msg = msg.lstrip(b"\x00").decode("utf-8")
 			msg = msg.decode("utf-8").strip()
+			if len(msg) == 0: raise
 			# receivedMsg = msg.decode('utf-8')
 			# receivedMsg = str(receivedMsg).strip()
 			# print("Received from STM: %s" % msg)
@@ -84,4 +85,3 @@ class STMRobot:
 		except Exception as e:
 			self.disconnectFromSTM()
 			print("Failed to receive message from STM", str(e))
-			raise e

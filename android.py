@@ -59,9 +59,7 @@ class AndroidApplication(object):
                     time.sleep(2)
         except Exception as e:
             print("Bluetooth connection has failed, waiting to reconnect. ", str(e))
-            self.sock.close()
-            self.isConnected = False
-            self.threadListening = False
+            self.disconnectFromAndroid()
 
     def disconnectFromAndroid(self):
         try:

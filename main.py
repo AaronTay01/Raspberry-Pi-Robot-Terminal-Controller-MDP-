@@ -81,7 +81,8 @@ class RaspberryPi(threading.Thread):
 
     # threading
     def run(self):
-        '''# Android control loop
+        time.sleep(1)
+        # Android control loop
         if not self.androidThread.isConnected:
             self.androidThread.connectToAndroid()
         elif self.androidThread.isConnected:
@@ -90,29 +91,33 @@ class RaspberryPi(threading.Thread):
                     threading.Thread(target=self.readFromAndroid).start()  # start Android socket listener thread
                 except Exception as error:
                     print("Android threading error: %s" % str(error))
-                    self.androidThread.disconnectFromAndroid()'''
+                    self.androidThread.disconnectFromAndroid()
         # STM control loop
         if not self.STMThread.isConnected:
             self.STMThread.connectToSTM()
         elif self.STMThread.isConnected:
             if not self.STMThread.threadListening:
                 try:
-                    t = threading.Thread(target=self.readFromSTM)
-                    t.daemon = True
-                    t.start()  # start STM listener thread
+                    self.STMThread.threadListening = True
+                    thread = threading.Thread(target=self.readFromSTM)
+                    thread.daemon = True
+                    thread.start()  # start STM listener thread
                 except Exception as error:
                     print("STM threading error: %s" % str(error))
                     self.STMThread.disconnectFromSTM()
         # PC control loop
-        '''if not self.pcThread.isConnected:
-            self.pcThread.connectToPC()
-        elif self.pcThread.isConnected:
-            if not self.pcThread.threadListening:
-                try:
-                    threading.Thread(target=self.readFromPC).start()  # start PC socket listener thread
-                except Exception as error:
-                    print("PC threading error: %s" % str(error))
-                    self.pcThread.disconnectFromPC()'''
+        # if not self.pcThread.isConnected:
+        #     self.pcThread.connectToPC()
+        # elif self.pcThread.isConnected:
+        #     if not self.pcThread.threadListening:
+        #         try:
+        #             self.pcThread.threadListening = True
+        #             thread = threading.Thread(target=self.readFromPC)  # start PC socket listener thread
+        #             thread.daemon = True
+        #             thread.start()
+        #         except Exception as error:
+        #             print("PC threading error: %s" % str(error))
+        #             self.pcThread.disconnectFromPC()
 
     def disconnectAll(self):
         if self.STMThread.isConnected:
@@ -156,47 +161,53 @@ class RaspberryPi(threading.Thread):
     def readFromSTM(self):
         while True:
             serialMsg = self.STMThread.readFromSTM()
+            if serialMsg is None:
+                break
             print("Read from STM:", serialMsg)
             parsedMsg = serialMsg.split(',')
-            if parsedMsg[0] == 'ACK':
-                self.rpi_queue.put(parsedMsg[0])
+            # if parsedMsg[0] == 'ACK':
+            #    self.rpi_queue.put(parsedMsg[0])
 
     def readFromPC(self):
         path_data = []
         while True:
             pcMessage = self.pcThread.readFromPC()
-            print(pcMessage)
-            if pcMessage is not None:
-                # image Recognition information
+            if pcMessage is None:
+                break
+            print("Read From PC: ", pcMessage)
+            # image Recognition information
+            parsedMsg = pcMessage.split(',')
+
+            if parsedMsg[0] == 'AN':
+                self.android_queue.put(pcMessage)
+
+            elif pcMessage == 'Finish Recognition':
+                self.rpi_queue.put(pcMessage)
+
+            elif pcMessage == 'A5':
+                self.img_pc_queue.put(pcMessage)
+
+            elif pcMessage == 'Not Found':
+                self.img_pc_queue.put(pcMessage)
+
+            elif pcMessage == 'Hello from algo team':
+                print("Load algorithm data..")
+                with self.path_queue.mutex:
+                    self.path_queue.queue.clear()
+                self.pathReady = False
+                continue
+            # save and terminate
+            elif pcMessage == 'Goodbye from algo team':
+                saveToTxtFile(path_data)
+                course_path = readTxtFile()
+                self.pathReady = self.insertPath(course_path)  # insert path onto queue
+                self.pcThread.disconnectFromPC()
+            elif not self.pathReady:
                 parsedMsg = pcMessage.split(',')
-
-                if parsedMsg[0] == 'AN':
-                    self.android_queue.put(pcMessage)
-
-                elif pcMessage == 'Finish Recognition':
-                    self.rpi_queue.put(pcMessage)
-
-                elif pcMessage == 'A5':
-                    self.img_pc_queue.put('A5')
-
-                elif pcMessage == 'Hello from algo team':
-                    print("Load algorithm data..")
-                    with self.path_queue.mutex:
-                        self.path_queue.queue.clear()
-                    self.pathReady = False
-                    continue
-                # save and terminate
-                elif pcMessage == 'Goodbye from algo team':
-                    saveToTxtFile(path_data)
-                    course_path = readTxtFile()
-                    self.pathReady = self.insertPath(course_path)  # insert path onto queue
-                    self.pcThread.disconnectFromPC()
-                elif not self.pathReady:
-                    parsedMsg = pcMessage.split(',')
-                    if parsedMsg[0] == 'ST':
-                        print("Reading algorithm data: ", parsedMsg)
-                        path_data += parsedMsg
-                    # path_data = self.getAlgoData(pcMessage, path_data)  # insert msg onto path_data list
+                if parsedMsg[0] == 'ST':
+                    print("Reading algorithm data: ", parsedMsg)
+                    path_data += parsedMsg
+                # path_data = self.getAlgoData(pcMessage, path_data)  # insert msg onto path_data list
 
     @staticmethod
     def getAlgoData(msg, path_data):
@@ -229,12 +240,27 @@ class RaspberryPi(threading.Thread):
                     self.pathDeployed = True
                     continue
 
+                # target not found
+                if msg == "RPI,0":
+                    movement = "l090,w000"
+                    movementArr = movement.split(',')
+                    for j in movementArr:
+                        self.manual_queue.put(j)
+                # target found
+                elif msg.startswith("RPI,"):  # eg. "RPI,11"
+                    print(msg)
+                    imageIdStr = msg.split(",")
+                    print("image id " + imageIdStr[1] + " detected!")
+                    print("Task A5 completed")
+
                 # Finish 1 path
-                if msg == 'Finish Recognition':
+                elif msg == 'Finish Recognition':
                     self.executePath()
                     self.number_of_paths -= 1
                     # self.android_queue.put('START PATH')
                     continue
+                # elif msg == 'ACK':
+                #    print("STM Movement Completed")
 
             if not self.android_queue.empty():
                 msg = self.android_queue.get()
@@ -247,10 +273,6 @@ class RaspberryPi(threading.Thread):
                 msg = self.manual_queue.get()
                 self.STMThread.writeToSTM(msg)
                 time.sleep(0.1)
-                # while True:
-                #     print(msg)
-                #     if msg == 'ACK':
-                #         break
                 continue
 
             if not self.al_pc_queue.empty():
@@ -266,7 +288,7 @@ class RaspberryPi(threading.Thread):
                     # RPI received msg to take picture
                     for i in range(5):  # RPI takes pictures and sends pictures over to PC
                         encodedString = takePictures()
-                        # self.writeToPC(encodedString)
+                        self.writeToPC(encodedString)
                         print("image " + str(i) + "sent!")
 
                 # Receive ACK
@@ -274,31 +296,12 @@ class RaspberryPi(threading.Thread):
                     # Execute next path after image is taken
                     self.rpi_queue.put('START PATH')
 
-                elif msg == "A5":  # this is the checklist task
+                elif msg == "A5" or msg == 'Not Found':  # this is the checklist task
                     print("Starting A5 Task")
-
-                    imageIdArr = ["AN,30", "AN,30", "AN,30", "AN,20"]
-                    for i in imageIdArr:
-                        encodedString = takePictures()
-                        self.writeToPC(encodedString)  # sends image to PC
-                        print("image for A5 sent!")
-                        # imageId = self.pcThread.readFromPC()
-                        # testing
-                        # imageId = 'AN,30'
-                        imageId = i
-
-                        movement = "l090,l090,s030,l090,s030,w000"
-                        movementArr = movement.split(',')
-
-                        if imageId == "AN,30":
-                            for j in movementArr:
-                                self.manual_queue.put(j)
-                        # image found
-                        else:
-                            imageIdStr = imageId.split(",")[1]
-                            print("image id " + imageIdStr + " detected!")
-                            print("Task A5 completed")
-                            break
+                    # imageIdArr = ["AN,30", "AN,30", "AN,30", "AN,20"]
+                    encodedString = takePictures()
+                    self.writeToPC(encodedString)  # sends image to PC
+                    print("image for A5 sent!")
 
             # Finish all path
             if self.number_of_paths == 0:
@@ -308,20 +311,21 @@ class RaspberryPi(threading.Thread):
 
     def testRunSTM(self):
         time.sleep(3)
-        # main.manual_queue.put("l100")
+        main.manual_queue.put("l100")
+        main.manual_queue.put("l100")
+        main.manual_queue.put("r100")
+        main.manual_queue.put("r100")
+        main.manual_queue.put("f100")
+        # main.STMThread.writeToSTM("r100")
         # time.sleep(0.1)
-        # main.manual_queue.put("l100")
-        main.STMThread.writeToSTM("r100")
-        time.sleep(0.1)
-        main.STMThread.writeToSTM("r100")
-        time.sleep(0.1)
+        # main.STMThread.writeToSTM("r100")
+        # time.sleep(0.1)
         # val = input("Insert STM Value: ")
         # time.sleep(0.3)
         # main.STMThread.writeToSTM(val)
 
     def testRunA5(self):
         main.img_pc_queue.put('A5')
-
 
 
 def handler(signal_received, frame):
@@ -344,10 +348,9 @@ if __name__ == "__main__":
     try:
         print("Starting MultiTreading")
         main.testRunA5()
+        # if main.STMThread.isConnected:
+        #    main.testRunSTM()
         while True:
-            # if main.STMThread.isConnected:
-                # print()
-                # main.testRunSTM()
             main.run()
             # Priming
             # add STM and PC is connected
