@@ -81,8 +81,8 @@ class RaspberryPi(threading.Thread):
 
     # threading
     def run(self):
-        # time.sleep(1)
-        # # Android control loop
+        time.sleep(1)
+        # Android control loop
         # if not self.androidThread.isConnected:
         #     self.androidThread.connectToAndroid()
         # elif self.androidThread.isConnected:
@@ -228,6 +228,7 @@ class RaspberryPi(threading.Thread):
                     break
 
     def command_forwarder(self):
+        count = 2
         while True:
             if not self.rpi_queue.empty():
                 msg = self.rpi_queue.get()
@@ -238,14 +239,16 @@ class RaspberryPi(threading.Thread):
                     continue
 
                 # target not found
-                if msg == "RPI,0":
-                    movement = "l090,w000"
+                if msg == "RPI,NIL" or not msg.startswith("RPI,1"):
+                    movement = "l090,r090,b030,r090,w000"
                     movementArr = movement.split(',')
                     for j in movementArr:
-                        self.manual_queue.put(j)
+                        self.STMThread.writeToSTM(j)
+                    time.sleep(1)
+                    self.img_pc_queue.put("A5")
                 # target found
-                elif msg.startswith("RPI,"):  # eg. "RPI,11"
-                    print(msg)
+                elif msg == 'RPI,13':  # eg. "RPI,11"
+                    # self.rpi_queue.put("RPI,0")
                     imageIdStr = msg.split(",")
                     print("image id " + imageIdStr[1] + " detected!")
                     print("Task A5 completed")
@@ -281,7 +284,7 @@ class RaspberryPi(threading.Thread):
             if not self.img_pc_queue.empty():
                 msg = self.img_pc_queue.get()
 
-                if msg == 'Start Recognition':
+                if msg == 'A5':
                     # RPI received msg to take picture
                     for i in range(5):  # RPI takes pictures and sends pictures over to PC
                         encodedString = takePictures()
@@ -295,6 +298,7 @@ class RaspberryPi(threading.Thread):
 
                 elif msg == "A5" or msg == 'Not Found':  # this is the checklist task
                     print("Starting A5 Task")
+                    self.pcThread.writeToPC("rec")
                     # imageIdArr = ["AN,30", "AN,30", "AN,30", "AN,20"]
                     encodedString = takePictures()
                     self.writeToPC(encodedString)  # sends image to PC
