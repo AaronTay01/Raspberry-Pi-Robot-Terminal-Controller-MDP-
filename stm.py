@@ -77,7 +77,6 @@ class STMRobot:
 			msg = msg.lstrip(b"\x00")
 			#	msg = msg.lstrip(b"\x00").decode("utf-8")
 			msg = msg.decode("utf-8").strip()
-			if len(msg) == 0: raise
 			# receivedMsg = msg.decode('utf-8')
 			# receivedMsg = str(receivedMsg).strip()
 			# print("Received from STM: %s" % msg)

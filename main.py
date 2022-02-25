@@ -11,7 +11,6 @@ from image import takePictures
 from pc import *
 from stm import *
 
-
 def readTxtFile():
     with open('algo file.txt') as f:
         lines = f.read().splitlines()
@@ -81,8 +80,8 @@ class RaspberryPi(threading.Thread):
 
     # threading
     def run(self):
-        # time.sleep(1)
-        # # Android control loop
+        time.sleep(1)
+        # Android control loop
         # if not self.androidThread.isConnected:
         #     self.androidThread.connectToAndroid()
         # elif self.androidThread.isConnected:
@@ -228,8 +227,10 @@ class RaspberryPi(threading.Thread):
                     break
 
     def command_forwarder(self):
+        count = 2
         while True:
             if not self.rpi_queue.empty():
+                print("IS NOT EMPTY")
                 msg = self.rpi_queue.get()
                 # Start Button
                 if msg == 'START PATH':
@@ -237,15 +238,10 @@ class RaspberryPi(threading.Thread):
                     self.pathDeployed = True
                     continue
 
-                # target not found
-                if msg == "RPI,0":
-                    movement = "l090,w000"
-                    movementArr = movement.split(',')
-                    for j in movementArr:
-                        self.manual_queue.put(j)
+
                 # target found
-                elif msg.startswith("RPI,"):  # eg. "RPI,11"
-                    print(msg)
+                if msg == 'RPI,13':  # eg. "RPI,11"
+                    # self.rpi_queue.put("RPI,0")
                     imageIdStr = msg.split(",")
                     print("image id " + imageIdStr[1] + " detected!")
                     print("Task A5 completed")
@@ -256,6 +252,14 @@ class RaspberryPi(threading.Thread):
                     self.number_of_paths -= 1
                     # self.android_queue.put('START PATH')
                     continue
+                    # target not found
+                else:
+                    movement = "l090,r090,b030,r090,w000"
+                    movementArr = movement.split(',')
+                    for j in movementArr:
+                        self.STMThread.writeToSTM(j)
+                    time.sleep(1)
+                    # self.img_pc_queue.put("A5")
                 # elif msg == 'ACK':
                 #    print("STM Movement Completed")
 
@@ -281,7 +285,8 @@ class RaspberryPi(threading.Thread):
             if not self.img_pc_queue.empty():
                 msg = self.img_pc_queue.get()
 
-                if msg == 'Start Recognition':
+
+                if msg == 'A5':
                     # RPI received msg to take picture
                     for i in range(5):  # RPI takes pictures and sends pictures over to PC
                         encodedString = takePictures()
@@ -295,11 +300,13 @@ class RaspberryPi(threading.Thread):
 
                 elif msg == "A5" or msg == 'Not Found':  # this is the checklist task
                     print("Starting A5 Task")
+                    self.pcThread.writeToPC("rec")
                     # imageIdArr = ["AN,30", "AN,30", "AN,30", "AN,20"]
                     encodedString = takePictures()
                     self.writeToPC(encodedString)  # sends image to PC
                     print("image for A5 sent!")
-
+                elif msg == "END":
+                    takePictures()
             # Finish all path
             if self.number_of_paths == 0:
                 print("All Path is completed")
@@ -341,24 +348,25 @@ def handler(signal_received, frame):
 if __name__ == "__main__":
     print("Program Starting")
     # signal(SIGINT, handler)
+
     main = RaspberryPi()
+
     try:
         print("Starting MultiTreading")
         main.testRunA5()
         # if main.STMThread.isConnected:
         #    main.testRunSTM()
-        while True:
-            main.run()
-            # Priming
-            # add STM and PC is connected
-            if (not main.primed and main.pathReady
-                    and main.androidThread.isConnected
-                    and main.pcThread.isConnected
-                    and main.STMThread.isConnected):
-                main.primed = True
-                time.sleep(2)
-                main.writeToAndroid("READY TO START")
-                print("System All Green")
+        main.run()
+        # Primings
+        # add STM and PC is connected
+        if (not main.primed and main.pathReady
+                and main.androidThread.isConnected
+                and main.pcThread.isConnected
+                and main.STMThread.isConnected):
+            main.primed = True
+            time.sleep(2)
+            main.writeToAndroid("READY TO START")
+            print("System All Green")
 
     except Exception as e:
         print(str(e))
