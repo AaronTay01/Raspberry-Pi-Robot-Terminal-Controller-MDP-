@@ -183,9 +183,6 @@ class RaspberryPi(threading.Thread):
             elif pcMessage == 'Finish Recognition' or parsedMsg[0] == 'RPI':
                 self.rpi_queue.put(pcMessage)
 
-            elif pcMessage == 'A5':
-                self.img_pc_queue.put(pcMessage)
-
             elif pcMessage == 'Hello from algo team':
                 print("Load algorithm data..")
                 with self.path_queue.mutex:
@@ -227,7 +224,6 @@ class RaspberryPi(threading.Thread):
                     break
 
     def command_forwarder(self):
-        count = 2
         while True:
             if not self.rpi_queue.empty():
                 print("IS NOT EMPTY")
@@ -238,14 +234,6 @@ class RaspberryPi(threading.Thread):
                     self.pathDeployed = True
                     continue
 
-
-                # target found
-                if msg == 'RPI,13':  # eg. "RPI,11"
-                    # self.rpi_queue.put("RPI,0")
-                    imageIdStr = msg.split(",")
-                    print("image id " + imageIdStr[1] + " detected!")
-                    print("Task A5 completed")
-
                 # Finish 1 path
                 elif msg == 'Finish Recognition':
                     self.executePath()
@@ -253,13 +241,6 @@ class RaspberryPi(threading.Thread):
                     # self.android_queue.put('START PATH')
                     continue
                     # target not found
-                else:
-                    movement = "l090,r090,b030,r090,w000"
-                    movementArr = movement.split(',')
-                    for j in movementArr:
-                        self.STMThread.writeToSTM(j)
-                    time.sleep(1)
-                    # self.img_pc_queue.put("A5")
                 # elif msg == 'ACK':
                 #    print("STM Movement Completed")
 
@@ -284,27 +265,11 @@ class RaspberryPi(threading.Thread):
 
             if not self.img_pc_queue.empty():
                 msg = self.img_pc_queue.get()
-
-
-                if msg == 'A5':
-                    # RPI received msg to take picture
-                    for i in range(5):  # RPI takes pictures and sends pictures over to PC
-                        encodedString = takePictures()
-                        self.writeToPC(encodedString)
-                        print("image " + str(i) + "sent!")
-
-                # Receive ACK
-                elif msg == 'PC received images from RPI':
+                
+                if msg == 'PC received images from RPI':
                     # Execute next path after image is taken
                     self.rpi_queue.put('START PATH')
 
-                elif msg == "A5" or msg == 'Not Found':  # this is the checklist task
-                    print("Starting A5 Task")
-                    self.pcThread.writeToPC("rec")
-                    # imageIdArr = ["AN,30", "AN,30", "AN,30", "AN,20"]
-                    encodedString = takePictures()
-                    self.writeToPC(encodedString)  # sends image to PC
-                    print("image for A5 sent!")
                 elif msg == "END":
                     takePictures()
             # Finish all path
@@ -328,9 +293,6 @@ class RaspberryPi(threading.Thread):
         # time.sleep(0.3)
         # main.STMThread.writeToSTM(val)
 
-    def testRunA5(self):
-        main.img_pc_queue.put('A5')
-
 
 def handler(signal_received, frame):
     # res = input("Ctrl-c was pressed. Do you really want to exit? y/n ")
@@ -353,7 +315,6 @@ if __name__ == "__main__":
 
     try:
         print("Starting MultiTreading")
-        main.testRunA5()
         # if main.STMThread.isConnected:
         #    main.testRunSTM()
         main.run()
